@@ -7,6 +7,7 @@ import (
 
 	pb "github.com/Saad7890-web/meridian/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func StartGRPCServer(port int, kvService *KVService) {
@@ -18,6 +19,9 @@ func StartGRPCServer(port int, kvService *KVService) {
 	server := grpc.NewServer()
 
 	pb.RegisterKVServer(server, kvService)
+
+	
+	reflection.Register(server)
 
 	log.Printf("gRPC server running on :%d\n", port)
 

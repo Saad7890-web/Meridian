@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/Saad7890-web/meridian/internal/api"
 	"github.com/Saad7890-web/meridian/internal/config"
@@ -28,20 +27,25 @@ func main() {
 
 	http.HandleFunc("/health", api.HealthHandler)
 
-	kvHandler := api.NewKVHandler(store)
+	// kvHandler := api.NewKVHandler(store)
 
-	http.HandleFunc("/put", kvHandler.Put)
-	http.HandleFunc("/get", kvHandler.Get)
-	http.HandleFunc("/delete", kvHandler.Delete)
+	// http.HandleFunc("/put", kvHandler.Put)
+	// http.HandleFunc("/get", kvHandler.Get)
+	// http.HandleFunc("/delete", kvHandler.Delete)
 
-	go func() {
-		addr := ":" + strconv.Itoa(cfg.Port)
-		log.Printf("HTTP server running on %s\n", addr)
+	
+	kvService := api.NewKVService(store)
 
-		if err := http.ListenAndServe(addr, nil); err != nil {
-			log.Fatalf("server failed: %v", err)
-		}
-	}()
+	go api.StartGRPCServer(cfg.Port, kvService)
+
+	// go func() {
+	// 	addr := ":" + strconv.Itoa(cfg.Port)
+	// 	log.Printf("HTTP server running on %s\n", addr)
+
+	// 	if err := http.ListenAndServe(addr, nil); err != nil {
+	// 		log.Fatalf("server failed: %v", err)
+	// 	}
+	// }()
 
 	select {}
 }
