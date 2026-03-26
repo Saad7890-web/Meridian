@@ -1,52 +1,66 @@
 package raft
 
 import (
-	"encoding/json"
-	"io"
+	"net"
+	"os"
+	"time"
 
-	"github.com/Saad7890-web/meridian/internal/storage"
 	"github.com/hashicorp/raft"
+	boltdb "github.com/hashicorp/raft-boltdb"
 )
 
-type FSM struct {
-	store *storage.Store
+type Node struct {
+	Raft *raft.Raft
 }
 
-func NewFSM(store *storage.Store) *FSM {
-	return &FSM{store: store}
-}
+func NewNode(nodeID, bindAddr string, fsm *FSM) (*Node, error) {
+	config := raft.DefaultConfig()
+	config.LocalID = raft.ServerID(nodeID)
 
-
-func (f *FSM) Apply(log *raft.Log) interface{} {
-	var cmd map[string]string
-
-	if err := json.Unmarshal(log.Data, &cmd); err != nil {
-		return nil
+	addr, err := net.ResolveTCPAddr("tcp", bindAddr)
+	if err != nil {
+		return nil, err
 	}
 
-	switch cmd["op"] {
-	case "put":
-		f.store.Put(cmd["key"], cmd["value"])
-	case "delete":
-		f.store.Delete(cmd["key"])
+	transport, err := raft.NewTCPTransport(bindAddr, addr, 3, 10*time.Second, os.Stdout)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil
+	logStore, err := boltdb.NewBoltStore("raft-log.db")
+	if err != nil {
+		return nil, err
+	}
+
+	stableStore, err := boltdb.NewBoltStore("raft-stable.db")
+	if err != nil {
+		return nil, err
+	}
+
+	snapshots, err := raft.NewFileSnapshotStore(".", 1, os.Stdout)
+	if err != nil {
+		return nil, err
+	}
+
+	r, err := raft.NewRaft(config, fsm, logStore, stableStore, snapshots, transport)
+	if err != nil {
+		return nil, err
+	}
+
+	
+	r.BootstrapCluster(raft.Configuration{
+		Servers: []raft.Server{
+			{
+				ID:      config.LocalID,
+				Address: transport.LocalAddr(),
+			},
+		},
+	})
+
+	return &Node{Raft: r}, nil
 }
 
-func (f *FSM) Snapshot() (raft.FSMSnapshot, error) {
-	return &noopSnapshot{}, nil
+func (n *Node) Apply(cmd []byte) error {
+	f := n.Raft.Apply(cmd, 5*time.Second)
+	return f.Error()
 }
-
-func (f *FSM) Restore(rc io.ReadCloser) error {
-	return nil
-}
-
-type noopSnapshot struct{}
-
-func (n *noopSnapshot) Persist(sink raft.SnapshotSink) error {
-	sink.Cancel()
-	return nil
-}
-
-func (n *noopSnapshot) Release() {}
