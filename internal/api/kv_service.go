@@ -15,8 +15,11 @@ type KVService struct {
 	raftNode *raft.Node
 }
 
-func NewKVService(store *storage.Store) *KVService {
-	return &KVService{store: store}
+func NewKVService(store *storage.Store, raftNode *raft.Node) *KVService {
+	return &KVService{
+		store:    store,
+		raftNode: raftNode,
+	}
 }
 
 func (s *KVService) Put(ctx context.Context, req *pb.PutRequest) (*pb.PutResponse, error) {

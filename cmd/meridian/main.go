@@ -3,9 +3,11 @@ package main
 import (
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/Saad7890-web/meridian/internal/api"
 	"github.com/Saad7890-web/meridian/internal/config"
+	"github.com/Saad7890-web/meridian/internal/raft"
 	"github.com/Saad7890-web/meridian/internal/storage"
 )
 
@@ -25,6 +27,22 @@ func main() {
 
 	log.Println("Storage initialized & recovered")
 
+
+	fsm := raft.NewFSM(store)
+
+	// 4. Raft Node
+	raftNode, err := raft.NewNode(
+		cfg.NodeID,
+		"0.0.0.0:"+strconv.Itoa(cfg.Port+1000),
+		fsm,
+	)
+	if err != nil {
+		log.Fatalf("raft init failed: %v", err)
+	}
+
+	// 5. KV Service (IMPORTANT: pass raftNode)
+	
+
 	http.HandleFunc("/health", api.HealthHandler)
 
 	// kvHandler := api.NewKVHandler(store)
@@ -34,7 +52,7 @@ func main() {
 	// http.HandleFunc("/delete", kvHandler.Delete)
 
 	
-	kvService := api.NewKVService(store)
+	kvService := api.NewKVService(store, raftNode)
 
 	go api.StartGRPCServer(cfg.Port, kvService)
 
