@@ -7,8 +7,11 @@ services:
     environment:
       - NODE_ID=node-1
       - PORT=8080
+      - RAFT_PORT=9001
+      - PEERS=meridian-node1:9001,meridian-node2:9002,meridian-node3:9003
     ports:
       - "8081:8080"
+      - "9001:9001"
 
   node2:
     build: ..
@@ -16,8 +19,11 @@ services:
     environment:
       - NODE_ID=node-2
       - PORT=8080
+      - RAFT_PORT=9002
+      - PEERS=meridian-node1:9001,meridian-node2:9002,meridian-node3:9003
     ports:
       - "8082:8080"
+      - "9002:9002"
 
   node3:
     build: ..
@@ -25,5 +31,8 @@ services:
     environment:
       - NODE_ID=node-3
       - PORT=8080
+      - RAFT_PORT=9003
+      - PEERS=meridian-node1:9001,meridian-node2:9002,meridian-node3:9003
     ports:
       - "8083:8080"
+      - "9003:9003"

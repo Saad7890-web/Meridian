@@ -10,8 +10,12 @@ import (
 )
 
 type Node struct {
-	Raft *raft.Raft
+	Raft          *raft.Raft
+	LogStore      raft.LogStore
+	StableStore   raft.StableStore
+	SnapshotStore raft.SnapshotStore
 }
+
 
 func NewNode(nodeID, bindAddr string, fsm *FSM) (*Node, error) {
 	config := raft.DefaultConfig()
@@ -47,18 +51,43 @@ func NewNode(nodeID, bindAddr string, fsm *FSM) (*Node, error) {
 		return nil, err
 	}
 
-	
-	r.BootstrapCluster(raft.Configuration{
-		Servers: []raft.Server{
-			{
-				ID:      config.LocalID,
-				Address: transport.LocalAddr(),
-			},
-		},
-	})
-
-	return &Node{Raft: r}, nil
+	return &Node{
+		Raft:          r,
+		LogStore:      logStore,
+		StableStore:   stableStore,
+		SnapshotStore: snapshots,
+	}, nil
 }
+
+
+func (n *Node) BootstrapIfNeeded(nodeID string, peers []string) {
+	hasState, err := raft.HasExistingState(n.LogStore, n.StableStore, n.SnapshotStore)
+	if err != nil {
+		return
+	}
+
+	if hasState {
+		return
+	}
+
+	var servers []raft.Server
+
+	for _, peer := range peers {
+		if peer == "" {
+			continue
+		}
+
+		servers = append(servers, raft.Server{
+			ID:      raft.ServerID(peer),
+			Address: raft.ServerAddress(peer),
+		})
+	}
+
+	n.Raft.BootstrapCluster(raft.Configuration{
+		Servers: servers,
+	})
+}
+
 
 func (n *Node) Apply(cmd []byte) error {
 	f := n.Raft.Apply(cmd, 5*time.Second)

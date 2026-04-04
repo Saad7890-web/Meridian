@@ -30,17 +30,17 @@ func main() {
 
 	fsm := raft.NewFSM(store)
 
-	// 4. Raft Node
+	
 	raftNode, err := raft.NewNode(
 		cfg.NodeID,
-		"0.0.0.0:"+strconv.Itoa(cfg.Port+1000),
+		"0.0.0.0:"+strconv.Itoa(cfg.RaftPort+1000),
 		fsm,
 	)
 	if err != nil {
 		log.Fatalf("raft init failed: %v", err)
 	}
 
-	// 5. KV Service (IMPORTANT: pass raftNode)
+	raftNode.BootstrapIfNeeded(cfg.NodeID, cfg.Peers)
 	
 
 	http.HandleFunc("/health", api.HealthHandler)
